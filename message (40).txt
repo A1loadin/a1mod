@@ -1,0 +1,140 @@
+loadstring([==[
+--// A1 Loader
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+
+--// Window
+local Window = Rayfield:CreateWindow({
+    Name = "[🛠️] A1 Mod Notifier",
+    LoadingTitle = "[🛠️]A1 Mod Notifier",
+    LoadingSubtitle = "by OTB_A1 ",
+    ConfigurationSaving = { Enabled = false }
+})
+
+--// Tabs
+local MainTab = Window:CreateTab("Main", 4483362458)
+local LogTab = Window:CreateTab("Logs", 4483362458)
+
+--// Services
+local Players = game:GetService("Players")
+local SoundService = game:GetService("SoundService")
+local LocalPlayer = Players.LocalPlayer
+
+--// Config
+local groupId = 40382415
+local notificationMessage = "mod detected"
+
+local specialUserIds = {
+    72521798, 7794444637, 2815508189,
+    6203233210, 555909464, 350124454, 5637396
+}
+
+--// State
+local notifierEnabled = true
+local logs = {}
+
+--// Sound
+local alertSound = Instance.new("Sound")
+alertSound.SoundId = "rbxassetid://139605093465964"
+alertSound.Volume = 10
+alertSound.Parent = SoundService
+
+--// Log UI
+local LogLabel = LogTab:CreateParagraph({
+    Title = "Detection Log",
+    Content = "No detections yet."
+})
+
+--// Helpers
+local function addLog(text)
+    table.insert(logs, os.date("[%H:%M:%S] ") .. text)
+    LogLabel:Set({
+        Title = "Detection Log",
+        Content = table.concat(logs, "\n")
+    })
+end
+
+local function playSound()
+    pcall(function() alertSound:Play() end)
+end
+
+local function isSpecialUser(player)
+    for _, id in ipairs(specialUserIds) do
+        if player.UserId == id then
+            return true
+        end
+    end
+    return false
+end
+
+local function getRank(player)
+    local ok, rank = pcall(function()
+        return player:GetRoleInGroup(groupId)
+    end)
+    return ok and rank or "Unknown Rank"
+end
+
+local function notify(player, action)
+    if not notifierEnabled then return end
+
+    local rank = getRank(player)
+    local avatar =
+        "rbxthumb://type=AvatarHeadShot&id=" .. player.UserId .. "&w=420&h=420"
+
+    Rayfield:Notify({
+        Title = "Username: " .. player.Name,
+        Content = notificationMessage .. " - " .. action .. "\nRank: " .. rank,
+        Duration = 8,
+        Image = avatar
+    })
+
+    playSound()
+    addLog(player.Name .. " | " .. action .. " | " .. rank)
+end
+
+--// Toggle
+MainTab:CreateToggle({
+    Name = "Enable Mod Detection",
+    CurrentValue = true,
+    Callback = function(v)
+        notifierEnabled = v
+        Rayfield:Notify({
+            Title = "Notifier",
+            Content = v and "Enabled" or "Disabled",
+            Duration = 3
+        })
+    end
+})
+
+--// Initial Scan
+for _, player in ipairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer then
+        if player:IsInGroup(groupId) or isSpecialUser(player) then
+            notify(player, "Already In Game")
+        end
+    end
+end
+
+--// Join
+Players.PlayerAdded:Connect(function(player)
+    task.wait(1)
+    if player ~= LocalPlayer then
+        if player:IsInGroup(groupId) or isSpecialUser(player) then
+            notify(player, "Joined")
+        end
+    end
+end)
+
+--// Leave
+Players.PlayerRemoving:Connect(function(player)
+    if player:IsInGroup(groupId) or isSpecialUser(player) then
+        notify(player, "Left")
+    end
+end)
+
+--// Startup Notify
+Rayfield:Notify({
+    Title = "[🛠️]A1 Mod Notifier",
+    Content = "System Online",
+    Duration = 5
+})
+]==])()
